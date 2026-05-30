@@ -12,8 +12,8 @@ npm start      # node dist/index.js (production)
 
 - **TypeScript** with `NodeNext` module resolution, ESM (`"type": "module"`)
 - **Fastify 5.x** with `@fastify/compress` 8.x (required for compatibility)
-- **SSE endpoints**: `/v1/messages`, `/v1/chat/completions`, `/v1/responses`
 - **Entry**: `src/index.ts`, routes in `src/routes/`, shared SSE utilities in `src/lib/sse.ts`
+- **Port**: 3000 (hardcoded, no env var)
 
 ## Key Patterns
 
@@ -47,12 +47,23 @@ fastify.log.error({ err }, 'message');
 fastify.log.error('message', err);
 ```
 
+## API Endpoints (all POST)
+
+| Endpoint | Content-Type |
+|----------|--------------|
+| `POST /v1/messages` | SSE streaming |
+| `POST /v1/chat/completions` | SSE streaming |
+| `POST /v1/responses` | SSE streaming |
+| `GET /health` | JSON |
+
 ## Gotchas
 
 - `@fastify/compress` must be `^8.0.0` for Fastify 5.x. Version 7.x throws `FST_ERR_PLUGIN_VERSION_MISMATCH`
-- Streaming endpoints use hijack() - standard reply methods won't work
-- `createSSEContext` sets `Content-Encoding: gzip` + `text/event-stream` headers automatically
-- 30-second timeout on SSE connections (configurable via second param)
+- Streaming endpoints use `reply.hijack()` - standard reply methods won't work after hijack
+- `createSSEContext` sets `Content-Encoding: gzip` + `Content-Type: text/event-stream` headers automatically
+- 30-second timeout on SSE connections (configurable via second param to `createSSEContext`)
+- Server auto-generates self-signed HTTPS certs in `./certs/` on first run (requires `openssl`)
+- All v1 endpoints accept POST only (not GET)
 
 ## Project Structure
 
@@ -60,7 +71,8 @@ fastify.log.error('message', err);
 src/
 ├── index.ts           # Fastify server, compress plugin, route registration
 ├── lib/
-│   └── sse.ts         # SSE utilities: createSSEContext, writeSSEData, endSSEStream
+│   ├── sse.ts         # SSE utilities: createSSEContext, writeSSEData, endSSEStream
+│   └── cert.ts        # Self-signed cert generation for HTTPS
 └── routes/
     ├── messages.ts
     ├── chat-completions.ts
